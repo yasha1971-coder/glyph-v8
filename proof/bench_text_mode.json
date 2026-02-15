@@ -1,0 +1,120 @@
+{
+  "mode": "text",
+  "strategy": "isect_v1_canonical",
+  "trials": 2000,
+  "seed": 1,
+  "results": {
+    "48": {
+      "old": {
+        "L": 48,
+        "trials": 2000,
+        "seed": 1,
+        "hit_rate": 0.876,
+        "effective_pct": 36.1,
+        "fallback": 1029,
+        "miss": 248,
+        "recall": 1.0,
+        "recall_fail": 0,
+        "avg_cand": 3,
+        "med_cand": 3
+      },
+      "new": {
+        "L": 48,
+        "trials": 2000,
+        "seed": 1,
+        "hit_rate": 0.998,
+        "effective_pct": 99.0,
+        "fallback": 16,
+        "miss": 4,
+        "recall": 1.0,
+        "recall_fail": 0,
+        "avg_cand": 37.9,
+        "med_cand": 9
+      }
+    },
+    "96": {
+      "old": {
+        "L": 96,
+        "trials": 2000,
+        "seed": 1,
+        "hit_rate": 0.972,
+        "effective_pct": 50.8,
+        "fallback": 928,
+        "miss": 56,
+        "recall": 1.0,
+        "recall_fail": 0,
+        "avg_cand": 3,
+        "med_cand": 3
+      },
+      "new": {
+        "L": 96,
+        "trials": 2000,
+        "seed": 1,
+        "hit_rate": 1.0,
+        "effective_pct": 100.0,
+        "fallback": 0,
+        "miss": 0,
+        "recall": 1.0,
+        "recall_fail": 0,
+        "avg_cand": 8.4,
+        "med_cand": 3
+      }
+    },
+    "192": {
+      "old": {
+        "L": 192,
+        "trials": 2000,
+        "seed": 1,
+        "hit_rate": 0.992,
+        "effective_pct": 58.1,
+        "fallback": 821,
+        "miss": 16,
+        "recall": 1.0,
+        "recall_fail": 0,
+        "avg_cand": 3,
+        "med_cand": 3
+      },
+      "new": {
+        "L": 192,
+        "trials": 2000,
+        "seed": 1,
+        "hit_rate": 1.0,
+        "effective_pct": 100.0,
+        "fallback": 0,
+        "miss": 0,
+        "recall": 1.0,
+        "recall_fail": 0,
+        "avg_cand": 3.9,
+        "med_cand": 3
+      }
+    },
+    "384": {
+      "old": {
+        "L": 384,
+        "trials": 2000,
+        "seed": 1,
+        "hit_rate": 0.9965,
+        "effective_pct": 60.3,
+        "fallback": 787,
+        "miss": 7,
+        "recall": 1.0,
+        "recall_fail": 0,
+        "avg_cand": 3,
+        "med_cand": 3
+      },
+      "new": {
+        "L": 384,
+        "trials": 2000,
+        "seed": 1,
+        "hit_rate": 1.0,
+        "effective_pct": 100.0,
+        "fallback": 0,
+        "miss": 0,
+        "recall": 1.0,
+        "recall_fail": 0,
+        "avg_cand": 3.1,
+        "med_cand": 3
+      }
+    }
+  }
+}

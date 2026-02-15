@@ -1,0 +1,323 @@
+#!/usr/bin/env python3
+"""
+L0 Index Search v7.2 - Adaptive q-gram search with B/C layers
+Uses minimizers for query matching, with adaptive-q fallback.
+"""
+
+import sys
+import struct
+import json
+import argparse
+import mmap
+import bisect
+import zlib
+from collections import deque
+
+MAGIC = b"L0V2"
+HEADER_SIZE = 64
+
+def hash64(data: bytes) -> int:
+    """Use zlib.crc32 for speed, extend to 64 bits."""
+    crc = zlib.crc32(data) & 0xFFFFFFFF
+    return (crc << 32) | ((crc * 0x9e3779b9) & 0xFFFFFFFF)
+
+def compute_minimizers(data: bytes, q: int, w: int) -> set:
+    """Compute minimizer hashes using sliding window minimum."""
+    n = len(data)
+    if n < q:
+        return {hash64(data)}
+    
+    num_qgrams = n - q + 1
+    hashes = [hash64(data[i:i+q]) for i in range(num_qgrams)]
+    
+    if num_qgrams <= w:
+        return set(hashes)
+    
+    minimizers = set()
+    dq = deque()
+    
+    for i in range(num_qgrams):
+        while dq and dq[0] <= i - w:
+            dq.popleft()
+        while dq and hashes[dq[-1]] >= hashes[i]:
+            dq.pop()
+        dq.append(i)
+        if i >= w - 1:
+            minimizers.add(hashes[dq[0]])
+    
+    return minimizers
+
+def decode_varint(data, pos: int) -> tuple:
+    result = 0
+    shift = 0
+    while True:
+        b = data[pos]
+        result |= (b & 0x7F) << shift
+        pos += 1
+        if not (b & 0x80):
+            break
+        shift += 7
+    return result, pos
+
+def decode_delta_list(data, pos: int) -> tuple:
+    count, pos = decode_varint(data, pos)
+    values = []
+    prev = 0
+    for _ in range(count):
+        delta, pos = decode_varint(data, pos)
+        prev += delta
+        values.append(prev)
+    return values, pos
+
+def popcount_mask(mask: bytes) -> int:
+    count = 0
+    for b in mask:
+        count += bin(b).count('1')
+    return count
+
+def mask_to_chunks(mask: bytes, block_size: int, num_chunks: int) -> list:
+    chunks = []
+    for byte_idx, b in enumerate(mask):
+        for bit in range(8):
+            if b & (1 << bit):
+                block = byte_idx * 8 + bit
+                start = block * block_size
+                end = min(start + block_size, num_chunks)
+                chunks.extend(range(start, end))
+    return chunks
+
+class L0Index:
+    def __init__(self, index_path: str):
+        self.f = open(index_path, 'rb')
+        self.mm = mmap.mmap(self.f.fileno(), 0, access=mmap.ACCESS_READ)
+        
+        if self.mm[0:4] != MAGIC:
+            raise ValueError("Invalid L0 index magic")
+        
+        self.num_chunks = struct.unpack_from('<H', self.mm, 4)[0]
+        self.q = struct.unpack_from('<B', self.mm, 6)[0]
+        self.df_b_min = struct.unpack_from('<H', self.mm, 7)[0]
+        self.df_b_max = struct.unpack_from('<H', self.mm, 9)[0]
+        self.block_size = struct.unpack_from('<B', self.mm, 11)[0]
+        self.b_count = struct.unpack_from('<I', self.mm, 12)[0]
+        self.c_count = struct.unpack_from('<I', self.mm, 16)[0]
+        self.b_bytes = struct.unpack_from('<I', self.mm, 20)[0]
+        self.c_bytes = struct.unpack_from('<I', self.mm, 24)[0]
+        self.mask_bytes = struct.unpack_from('<B', self.mm, 28)[0]
+        self.w = struct.unpack_from('<B', self.mm, 29)[0] or 16
+        
+        self.b_start = HEADER_SIZE
+        self.c_start = HEADER_SIZE + self.b_bytes
+        
+        self._build_b_index()
+        self._build_c_index()
+    
+    def _build_b_index(self):
+        self.b_keys = []
+        self.b_offsets = []
+        pos = self.b_start
+        for _ in range(self.b_count):
+            h = struct.unpack_from('<Q', self.mm, pos)[0]
+            self.b_keys.append(h)
+            self.b_offsets.append(pos + 8)
+            pos += 8
+            count, pos = decode_varint(self.mm, pos)
+            prev = 0
+            for _ in range(count):
+                delta, pos = decode_varint(self.mm, pos)
+                prev += delta
+    
+    def _build_c_index(self):
+        self.c_keys = []
+        pos = self.c_start
+        entry_size = 8 + self.mask_bytes
+        for i in range(self.c_count):
+            h = struct.unpack_from('<Q', self.mm, pos)[0]
+            self.c_keys.append(h)
+            pos += entry_size
+    
+    def lookup_b(self, h: int):
+        idx = bisect.bisect_left(self.b_keys, h)
+        if idx < len(self.b_keys) and self.b_keys[idx] == h:
+            chunks, _ = decode_delta_list(self.mm, self.b_offsets[idx])
+            return chunks
+        return None
+    
+    def lookup_c(self, h: int):
+        idx = bisect.bisect_left(self.c_keys, h)
+        if idx < len(self.c_keys) and self.c_keys[idx] == h:
+            mask_start = self.c_start + idx * (8 + self.mask_bytes) + 8
+            mask = self.mm[mask_start:mask_start + self.mask_bytes]
+            return mask
+        return None
+    
+    def search(self, query: bytes, adaptive: bool = True) -> dict:
+        qlen = len(query)
+        
+        if adaptive:
+            q_values = [8, 7, 6]
+            w_values = [self.w, self.w // 2, self.w // 4]
+        else:
+            q_values = [self.q]
+            w_values = [self.w]
+        
+        for q_try, w_try in zip(q_values, w_values):
+            if qlen < q_try:
+                continue
+            
+            result = self._search_with_q(query, q_try, max(1, w_try))
+            if result['anchors_found'] > 0:
+                result['q_used'] = q_try
+                return result
+        
+        return {
+            'method': 'l0_fallback',
+            'q_used': 0,
+            'anchors_found': 0,
+            'best_df': 0,
+            'best_source': 'none',
+            'candidates': list(range(self.num_chunks)),
+            'cand_count': self.num_chunks,
+            'cand_pct': 100.0,
+            'l0_hit_rate': 0.0,
+        }
+    
+    def _search_with_q(self, query: bytes, q: int, w: int) -> dict:
+        MAX_ISECT_K = 4
+        MAX_CAND = 256
+        qlen = len(query)
+        if qlen < q:
+            return {'anchors_found': 0}
+        
+        if qlen < q + w:
+            query_hashes = set(hash64(query[i:i+q]) for i in range(qlen - q + 1))
+        else:
+            query_hashes = compute_minimizers(query, q, w)
+        
+        b_anchors = []
+        c_anchors = []
+        
+        for h in query_hashes:
+            b_result = self.lookup_b(h)
+            if b_result is not None:
+                b_anchors.append((h, set(b_result), len(b_result)))
+            else:
+                c_result = self.lookup_c(h)
+                if c_result is not None:
+                    pop = popcount_mask(c_result)
+                    c_anchors.append((h, c_result, pop * self.block_size))
+        
+        total_anchors = len(b_anchors) + len(c_anchors)
+        
+        if total_anchors == 0:
+            return {'anchors_found': 0}
+        
+        best_source = 'none'
+        best_df = 0
+        candidates = set()
+        method = 'union'
+        
+        if b_anchors:
+            sorted_b = sorted(b_anchors, key=lambda x: x[2])
+            best_df = sorted_b[0][2]
+            best_source = 'B'
+            best2_union = sorted_b[0][1] | (sorted_b[1][1] if len(sorted_b) > 1 else set())
+            if len(sorted_b) >= 2:
+                k = min(MAX_ISECT_K, len(sorted_b))
+                isect = set(sorted_b[0][1])
+                for i in range(1, k):
+                    trial = isect & sorted_b[i][1]
+                    if not trial:
+                        break
+                    isect = trial
+                    if len(isect) <= 64:
+                        break
+                candidates = isect | best2_union
+                method = 'b_isect'
+                best_source = 'B_isect'
+            else:
+                candidates = best2_union
+                method = 'b_best'
+            if len(candidates) > MAX_CAND:
+                candidates = best2_union
+                method = 'b_top2'
+                if len(candidates) > MAX_CAND:
+                    candidates = set(sorted_b[0][1])
+                    method = 'b_best1'
+        
+        if not b_anchors or len(candidates) > MAX_CAND:
+            if c_anchors:
+                sorted_c = sorted(c_anchors, key=lambda x: x[2])
+                best_c_df = sorted_c[0][2]
+                if not b_anchors or best_c_df < best_df:
+                    best_source = 'C'
+                    best_df = best_c_df
+                c_cands = set()
+                for _, mask, _ in sorted_c[:2]:
+                    c_cands.update(mask_to_chunks(mask, self.block_size, self.num_chunks))
+                if not candidates or len(c_cands) < len(candidates):
+                    candidates = c_cands
+                    method = 'c_top2'
+        
+        if len(candidates) > self.num_chunks // 2:
+            candidates = set(range(self.num_chunks))
+            method = 'fallback'
+            best_source = 'fallback'
+        
+        boundary_extended = set()
+        for c in candidates:
+            boundary_extended.add(c)
+            if c > 0:
+                boundary_extended.add(c - 1)
+            if c < self.num_chunks - 1:
+                boundary_extended.add(c + 1)
+        
+        candidates = sorted(boundary_extended)
+        
+        return {
+            'method': f'l0_{method}_{total_anchors}',
+            'anchors_found': total_anchors,
+            'b_anchors': len(b_anchors),
+            'c_anchors': len(c_anchors),
+            'best_df': best_df,
+            'best_source': best_source,
+            'candidates': candidates,
+            'cand_count': len(candidates),
+            'cand_pct': 100.0 * len(candidates) / self.num_chunks if self.num_chunks > 0 else 0,
+            'l0_hit_rate': 1.0,
+        }
+    
+    def close(self):
+        self.mm.close()
+        self.f.close()
+
+def main():
+    parser = argparse.ArgumentParser(description='Search L0 index')
+    parser.add_argument('index', help='Path to .l0 index')
+    parser.add_argument('--query', '-q', help='Query string')
+    parser.add_argument('--qfile', help='Query file')
+    parser.add_argument('--no-adaptive', action='store_true', help='Disable adaptive q')
+    parser.add_argument('--json', action='store_true', help='JSON output')
+    
+    args = parser.parse_args()
+    
+    if args.qfile:
+        with open(args.qfile, 'rb') as f:
+            query = f.read()
+    elif args.query:
+        query = args.query.encode('utf-8')
+    else:
+        query = sys.stdin.buffer.read()
+    
+    idx = L0Index(args.index)
+    result = idx.search(query, adaptive=not args.no_adaptive)
+    idx.close()
+    
+    if args.json:
+        print(json.dumps(result))
+    else:
+        print(f"Method: {result.get('method', 'unknown')}")
+        print(f"Candidates: {result.get('cand_count', 0)} ({result.get('cand_pct', 0):.1f}%)")
+
+if __name__ == '__main__':
+    main()

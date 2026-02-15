@@ -1,0 +1,26 @@
+Chunks: 6104, sizes: min=8448, max=16384
+OLD: B=2,000,000 C=5261
+NEW: B=4,811,814 C=5213
+trials=2000 seed=1
+
+L=48 done
+L=96 done
+L=192 done
+L=384 done
+
+--- TEXT-MODE (trials=2000) ---
+    L |   hit%   eff%   avg  med    rec |   hit%   eff%   avg  med    rec
+      |        --- OLD (2M) ---        |       --- NEW (4.8M) ---      
+---------------------------------------------------------------------------
+   48 |  87.6%  36.1%     3    3 1.0000 |  99.8%  99.0%    38    9 1.0000
+   96 |  97.2%  50.8%     3    3 1.0000 | 100.0% 100.0%     8    3 1.0000
+  192 |  99.2%  58.1%     3    3 1.0000 | 100.0% 100.0%     4    3 1.0000
+  384 |  99.7%  60.3%     3    3 1.0000 | 100.0% 100.0%     3    3 1.0000
+
+Saved: data/bench_text_mode.json
+
+--- SHA256 ---
+  1949b6b63393429533abeb7c8dc039f22a85b46e517731d42833a2633590c1b4  data/benchmark.glyph
+  2bb5d41064e58f4005ff66146a1a61231c4739a6229552d1eec23ae80dd55083  data/benchmark.glyph.l0
+  156f2bdd25aa870c8da8eb0993aa45758c7a43016e05023b16e9a68ab75bedf8  data/indexes/benchmark_5M_df1.glyph.l0
+  7a9f731ae58074290b62312b4b7dea69a0c2e2cb4c58b80bb1de39c19fe6d480  data/l0_search

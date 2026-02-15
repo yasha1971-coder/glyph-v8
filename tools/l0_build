@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+"""
+L0 Index Builder v7.2 - Using minimizers for scalability
+B-layer: df in [DF_B_MIN..DF_B_MAX] - store postings (chunk_id only)
+C-layer: df > DF_B_MAX - store coarse mask (64-chunk blocks)
+"""
+
+import sys
+import struct
+import json
+import argparse
+import zlib
+from collections import deque
+
+MAGIC = b"L0V2"
+HEADER_SIZE = 64
+GLYPH_MAGIC = b'GLYPH1'
+
+DF_B_MIN = 1
+DF_B_MAX = 256
+DF_C_MIN = 257
+DF_C_MAX = 4096
+BLOCK_SIZE = 64
+MAX_B_KEYS = 5000000
+Q = 8
+W = 8
+
+def hash64(data: bytes) -> int:
+    """Use zlib.crc32 for speed, extend to 64 bits."""
+    crc = zlib.crc32(data) & 0xFFFFFFFF
+    return (crc << 32) | ((crc * 0x9e3779b9) & 0xFFFFFFFF)
+
+def compute_minimizers(data: bytes, q: int = Q, w: int = W) -> set:
+    """Compute minimizer hashes using sliding window minimum."""
+    n = len(data)
+    if n < q:
+        return {hash64(data)}
+    
+    num_qgrams = n - q + 1
+    hashes = [hash64(data[i:i+q]) for i in range(num_qgrams)]
+    
+    if num_qgrams <= w:
+        return set(hashes)
+    
+    minimizers = set()
+    dq = deque()
+    
+    for i in range(num_qgrams):
+        while dq and dq[0] <= i - w:
+            dq.popleft()
+        while dq and hashes[dq[-1]] >= hashes[i]:
+            dq.pop()
+        dq.append(i)
+        if i >= w - 1:
+            minimizers.add(hashes[dq[0]])
+    
+    return minimizers
+
+def encode_varint(n: int) -> bytes:
+    result = []
+    while n >= 0x80:
+        result.append((n & 0x7F) | 0x80)
+        n >>= 7
+    result.append(n)
+    return bytes(result)
+
+def encode_delta_list(values: list) -> bytes:
+    if not values:
+        return encode_varint(0)
+    result = bytearray()
+    result.extend(encode_varint(len(values)))
+    prev = 0
+    for v in sorted(values):
+        result.extend(encode_varint(v - prev))
+        prev = v
+    return bytes(result)
+
+def chunks_to_mask(chunks: list, num_chunks: int) -> bytes:
+    num_blocks = (num_chunks + BLOCK_SIZE - 1) // BLOCK_SIZE
+    num_bytes = max(1, (num_blocks + 7) // 8)
+    mask = bytearray(num_bytes)
+    for c in chunks:
+        block = c // BLOCK_SIZE
+        if block // 8 < num_bytes:
+            mask[block // 8] |= (1 << (block % 8))
+    return bytes(mask)
+
+def load_glyph_chunks(glyph_path: str):
+    """Load chunks from .glyph file."""
+    with open(glyph_path, 'rb') as f:
+        magic = f.read(6)
+        if magic != GLYPH_MAGIC:
+            raise ValueError(f"Invalid GLYPH magic: {magic}")
+        
+        version, num_glyphs = struct.unpack('<BH', f.read(3))
+        
+        chunks = []
+        for _ in range(num_glyphs):
+            size = struct.unpack('<I', f.read(4))[0]
+            compressed = f.read(size)
+            try:
+                chunk = zlib.decompress(compressed)
+                chunks.append(chunk)
+            except:
+                chunks.append(b'')
+    
+    return chunks
+
+def build_l0_index(glyph_path: str, output_path: str, q: int = Q, w: int = W) -> dict:
+    """Build two-layer L0 index using minimizers."""
+    chunks = load_glyph_chunks(glyph_path)
+    num_chunks = len(chunks)
+    
+    minimizer_chunks = {}
+    
+    for chunk_id, chunk_data in enumerate(chunks):
+        minimizers = compute_minimizers(chunk_data, q, w)
+        for h in minimizers:
+            if h not in minimizer_chunks:
+                minimizer_chunks[h] = []
+            minimizer_chunks[h].append(chunk_id)
+    
+    b_keys = {}
+    c_keys = {}
+    
+    for h, chunk_list in minimizer_chunks.items():
+        df = len(chunk_list)
+        if df < DF_B_MIN:
+            continue
+        elif df <= DF_B_MAX:
+            b_keys[h] = chunk_list
+        elif df >= DF_C_MIN and df <= DF_C_MAX:
+            c_keys[h] = chunk_list
+    
+    if len(b_keys) > MAX_B_KEYS:
+        sorted_by_df = sorted(b_keys.items(), key=lambda x: len(x[1]))
+        b_keys = dict(sorted_by_df[:MAX_B_KEYS])
+    
+    b_sorted = sorted(b_keys.keys())
+    c_sorted = sorted(c_keys.keys())
+    
+    b_data = bytearray()
+    for h in b_sorted:
+        b_data.extend(struct.pack('<Q', h))
+        b_data.extend(encode_delta_list(b_keys[h]))
+    
+    c_data = bytearray()
+    num_blocks = (num_chunks + BLOCK_SIZE - 1) // BLOCK_SIZE
+    mask_bytes = max(1, (num_blocks + 7) // 8)
+    for h in c_sorted:
+        c_data.extend(struct.pack('<Q', h))
+        mask = chunks_to_mask(c_keys[h], num_chunks)
+        c_data.extend(mask.ljust(mask_bytes, b'\x00')[:mask_bytes])
+    
+    header = bytearray(HEADER_SIZE)
+    header[0:4] = MAGIC
+    struct.pack_into('<H', header, 4, num_chunks)
+    struct.pack_into('<B', header, 6, q)
+    struct.pack_into('<H', header, 7, DF_B_MIN)
+    struct.pack_into('<H', header, 9, DF_B_MAX)
+    struct.pack_into('<B', header, 11, BLOCK_SIZE)
+    struct.pack_into('<I', header, 12, len(b_sorted))
+    struct.pack_into('<I', header, 16, len(c_sorted))
+    struct.pack_into('<I', header, 20, len(b_data))
+    struct.pack_into('<I', header, 24, len(c_data))
+    struct.pack_into('<B', header, 28, mask_bytes)
+    struct.pack_into('<B', header, 29, w)
+    
+    with open(output_path, 'wb') as f:
+        f.write(header)
+        f.write(b_data)
+        f.write(c_data)
+    
+    total_bytes = HEADER_SIZE + len(b_data) + len(c_data)
+    
+    return {
+        'status': 'ok',
+        'num_chunks': num_chunks,
+        'q': q,
+        'w': w,
+        'b_keys': len(b_sorted),
+        'c_keys': len(c_sorted),
+        'b_bytes': len(b_data),
+        'c_bytes': len(c_data),
+        'total_bytes': total_bytes,
+        'df_b_min': DF_B_MIN,
+        'df_b_max': DF_B_MAX,
+        'block_size': BLOCK_SIZE,
+    }
+
+def main():
+    parser = argparse.ArgumentParser(description='Build L0 two-layer index')
+    parser.add_argument('archive', help='Path to .glyph archive')
+    parser.add_argument('-o', '--output', help='Output path (default: archive.l0)')
+    parser.add_argument('-q', type=int, default=Q, help='Q-gram size (default: 8)')
+    parser.add_argument('-w', type=int, default=W, help='Window size (default: 16)')
+    parser.add_argument('--json', action='store_true', help='JSON output')
+    
+    args = parser.parse_args()
+    
+    output = args.output or (args.archive + '.l0')
+    result = build_l0_index(args.archive, output, args.q, args.w)
+    
+    if args.json:
+        print(json.dumps(result))
+    else:
+        print(f"L0 Index: {result['total_bytes']} bytes")
+        print(f"  B-layer: {result['b_keys']} keys, {result['b_bytes']} bytes")
+        print(f"  C-layer: {result['c_keys']} keys, {result['c_bytes']} bytes")
+
+if __name__ == '__main__':
+    main()
