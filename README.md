@@ -7,3 +7,14 @@ This repo contains:
 - `proof/` — benchmark output + SHA256SUMS
 
 Large binary artifacts (`benchmark.glyph`, `.l0`) are provided via GitHub Releases.
+Glyph v8 is not the first system to search compressed data.
+
+But it is a simple, practical implementation of:
+chunked compression + minimizer indexing + partial decompression.
+
+Designed for:
+- logs
+- source code
+- large text archives
+
+A lightweight foundation for building searchable compressed storage.
