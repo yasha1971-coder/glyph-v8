@@ -1,132 +1,68 @@
-# STRIDE v0 — Minimal Deterministic Corpus Analyzer
+# STRIDE v0 — Deterministic Field‑Aware Integer Analyzer
 
-<pre>
-███████╗████████╗██████╗ ██╗██████╗ ███████╗
-██╔════╝╚══██╔══╝██╔══██╗██║██╔══██╗██╔════╝
-███████╗   ██║   ██████╔╝██║██║  ██║█████╗  
-╚════██║   ██║   ██╔══██╗██║██║  ██║██╔══╝  
-███████║   ██║   ██║  ██║██║██████╔╝███████╗
-╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝ ╚══════╝
-Minimal Deterministic Corpus Analyzer
-</pre>
+STRIDE v0 is a deterministic, field‑aware integer **analysis and modeling tool** revived from the abandoned glyph‑v8 prototype.  
+It profiles integer fields in binary protocols, builds per‑field entropy models, and forms the foundation for a future STRIDE codec (planned for v1).
 
-STRIDE v0 is a minimal, deterministic analysis toolkit for STRIDE containers.
-It provides byte‑exact, reproducible corpus inspection tools designed for low‑level structural analysis, benchmarking, and research workflows.
-STRIDE v0 is intentionally small, transparent, and dependency‑free.
-It is not a general‑purpose framework — it is a precise, verifiable toolset for understanding STRIDE‑encoded corpora.
+This version does **not** include an encoder/decoder.  
+It focuses entirely on deterministic corpus analysis.
 
-## Design Goals
-- Determinism — identical input always produces identical output
-- Minimalism — no external dependencies, no hidden state
-- Transparency — simple, readable Python implementation
-- Reproducibility — stable algorithms and stable CLI
-- Corpus‑centric — tools operate directly on STRIDE containers
+---
 
-## Features
-- bytefreq — global byte‑frequency statistics
-- hotspots — per‑chunk entropy analysis
-- fingerprint — rolling‑hash + bottom‑k MinHash corpus fingerprint
-- headersketch — 64‑element structural entropy sketch
-- compare — corpus similarity (fingerprint Jaccard + sketch L2)
-- full CLI — complete command‑line interface for all analysis tools
+## Features (v0)
 
-All algorithms are deterministic and operate directly on the raw STRIDE container format.
+### Profiling Layer
+- Parse binary corpus  
+- Detect integer fields  
+- Build per‑field histograms  
+- Estimate entropy  
 
-## Source Layout
-```
-./stride_v0/
-    README.md
-    stride/
-        bytefreq.py
-        hotspots.py
-        fingerprint.py
-        headersketch.py
-        compare.py
-        cli.py
-```
+### Modeling Layer
+- Select best codec model (Delta, Rice, Elias, Dictionary)  
+- Build entropy model  
+- Generate `model.json`  
 
-## CLI Usage
+### Container Analysis Tools
+- `container-bytefreq` — byte frequency distribution  
+- `container-hotspots` — entropy hotspots  
+- `container-fingerprint` — rolling fingerprint  
+- `container-headersketch` — header entropy sketch  
+- `container-compare` — compare two STRIDE containers  
 
-### Byte frequency
-```
-stride bytefreq corpus.stridebin
-```
+---
 
-### Hotspots (entropy map)
-```
-stride hotspots corpus.stridebin
-```
+## Benchmark Status (May 2026)
 
-### Fingerprint (MinHash)
-```
-stride fingerprint corpus.stridebin
-```
+STRIDE v0 is a **minimal deterministic analyzer**.  
+It does not include an encoder/decoder yet.  
+As a result, **no real compression ratios can be produced at this stage**.
 
-### Header sketch
-```
-stride headersketch corpus.stridebin
-```
+Expected ratios (6–8× vs zstd on integer‑heavy data) are **theoretical expectations derived from entropy modeling**, not measured compression results.
 
-### Corpus comparison
-```
-stride compare corpus_A.stridebin corpus_B.stridebin
-```
+The encoder/decoder will be introduced in **STRIDE v1**.
 
-## Example Output
-
-### Bytefreq
-```
-{
-  "00": 123456,
-  "01": 98765,
-  "02": 54321
-}
-```
-
-### Hotspots
-```
-chunk_0001: entropy=7.92
-chunk_0002: entropy=7.88
-chunk_0003: entropy=7.91
-```
-
-### Compare
-```
-fingerprint_jaccard: 0.873
-headersketch_l2: 0.042
-similarity_score: 0.912
-```
-
-## Limitations (Intentional)
-STRIDE v0 is a minimal prototype, not a full analysis suite.
-
-- No visualization tools
-- No parallel processing
-- No fuzzy matching
-- No semantic analysis
-- No compression or encoding logic
-
-Its purpose is clarity, not completeness.
+---
 
 ## Roadmap
 
-### v0.x (current)
-- Minimal deterministic analyzers
-- Stable CLI
-- Reproducible algorithms
+### STRIDE v1 (planned)
+- Deterministic encoder  
+- Deterministic decoder  
+- Full benchmark suite (STRIDE vs zstd vs LZ4)  
+- Streaming mode  
+- MessagePack and Thrift adapters  
+- Visualization of field distributions  
 
-### v1.0 (planned)
-- Unified output schema
-- Optional JSON output
-- Chunk‑level structural diff
-- Multi‑corpus comparison
-- Performance improvements
+---
 
-## Release
-Initial public pre‑release:  https://github.com/yasha1971-coder/glyph-v8/releases/tag/v0.1.0
+## Project Lineage
+
+STRIDE is the third primitive in a family:
+
+- **ACEAPEX** — parallel LZ77 decode  
+- **GLYPH** — deterministic byte‑exact retrieval  
+- **STRIDE** — field‑aware integer analysis  
+
+---
 
 ## License
-MIT License — see LICENSE file.
-
-## Acknowledgements
-STRIDE v0 is part of a broader research effort exploring deterministic corpus analysis and field‑aware encoding strategies.
+MIT
