@@ -1,0 +1,3 @@
+[console_scripts]
+stride = stride.cli:main
+
