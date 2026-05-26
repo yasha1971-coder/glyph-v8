@@ -1,20 +1,135 @@
-# Glyph v8 (L0 index + search)
+STRIDE v0 — Minimal Deterministic Corpus Analyzer
 
-This repo contains:
-- `tools/l0_build` — builds L0 index from `.glyph`
-- `tools/l0_search` — search (intersect strategy)
-- `bench_text_mode.py` — TEXT-mode benchmark (queries from decompressed glyph chunks)
-- `proof/` — benchmark output + SHA256SUMS
+STRIDE v0 is a minimal, deterministic analysis toolkit for STRIDE containers.
+It provides byte‑exact, reproducible corpus inspection tools designed for low‑level structural analysis, benchmarking, and research workflows.
 
-Large binary artifacts (`benchmark.glyph`, `.l0`) are provided via GitHub Releases.
-Glyph v8 is not the first system to search compressed data.
+STRIDE v0 is intentionally small, transparent, and dependency‑free.
+It is not a general‑purpose framework — it is a precise, verifiable toolset for understanding STRIDE‑encoded corpora.
 
-But it is a simple, practical implementation of:
-chunked compression + minimizer indexing + partial decompression.
+---
 
-Designed for:
-- logs
-- source code
-- large text archives
+Design Goals
 
-A lightweight foundation for building searchable compressed storage.
+• Determinism — identical input always produces identical output
+• Minimalism — no external dependencies, no hidden state
+• Transparency — simple, readable Python implementation
+• Reproducibility — stable algorithms and stable CLI
+• Corpus‑centric — tools operate directly on STRIDE containers
+
+
+---
+
+Features
+
+• bytefreq — global byte‑frequency statistics
+• hotspots — per‑chunk entropy analysis
+• fingerprint — rolling‑hash + bottom‑k MinHash corpus fingerprint
+• headersketch — 64‑element structural entropy sketch
+• compare — corpus similarity (fingerprint Jaccard + sketch L2)
+• full CLI — complete command‑line interface for all analysis tools
+
+
+All algorithms are deterministic and operate directly on the raw STRIDE container format.
+
+---
+
+Source Layout
+
+./stride_v0/
+    README.md
+    stride/
+        bytefreq.py
+        hotspots.py
+        fingerprint.py
+        headersketch.py
+        compare.py
+        cli.py
+        ...
+
+
+---
+
+CLI Usage
+
+Byte frequency
+
+stride bytefreq corpus.stridebin
+
+
+Hotspots (entropy map)
+
+stride hotspots corpus.stridebin
+
+
+Fingerprint (MinHash)
+
+stride fingerprint corpus.stridebin
+
+
+Header sketch
+
+stride headersketch corpus.stridebin
+
+
+Corpus comparison
+
+stride compare corpus_A.stridebin corpus_B.stridebin
+
+
+All commands produce deterministic, machine‑readable output.
+
+---
+
+Limitations (Intentional)
+
+STRIDE v0 is a minimal prototype, not a full analysis suite.
+
+• No visualization tools
+• No parallel processing
+• No fuzzy matching
+• No semantic analysis
+• No compression or encoding logic
+
+
+Its purpose is clarity, not completeness.
+
+---
+
+Roadmap
+
+v0.x (current)
+
+• Minimal deterministic analyzers
+• Stable CLI
+• Reproducible algorithms
+
+
+v1.0 (planned)
+
+• Unified output schema
+• Optional JSON output
+• Chunk‑level structural diff
+• Multi‑corpus comparison
+• Performance improvements
+
+
+---
+
+Release
+
+Initial public pre‑release:https://github.com/yasha1971-coder/glyph-v8/releases/tag/v0.1.0 (github.com in Bing)
+(github.com in Bing) (bing.com in Bing)
+
+---
+
+License
+
+MIT License — see LICENSE file.
+
+---
+
+Acknowledgements
+
+STRIDE v0 is part of a broader research effort exploring deterministic corpus analysis and field‑aware encoding strategies.
+
+---
