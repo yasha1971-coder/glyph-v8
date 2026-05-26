@@ -1,10 +1,9 @@
-STRIDE v0 — Minimal Deterministic Corpus Analyzer
+STRIDE v0 — Deterministic Corpus Analysis Toolkit
 
 STRIDE v0 is a minimal, deterministic analysis toolkit for structured binary corpora.
 It provides byte‑exact, reproducible inspection tools designed for transparent, measurable, and fully deterministic workflows.
 
-STRIDE v0 is intentionally small, dependency‑free, and focused.
-It is not a general‑purpose framework — it is a precise, verifiable analysis tool for understanding binary containers.
+This project revives and modernizes the original glyph‑v8 prototype, transforming it into a clean, well‑defined analysis engine focused on determinism and reproducibility.
 
 ---
 
@@ -24,14 +23,20 @@ It is not a general‑purpose framework — it is a precise, verifiable analysis
 STRIDE v0 performs four deterministic analyses on binary corpora:
 
 1. Byte Frequency
-Global frequency distribution of all 256 byte values.
-2. Hotspots
-Local entropy peaks across the corpus.
-3. Fingerprint
-Rolling‑hash + bottom‑k MinHash content signature.
-4. HeaderSketch
-64‑slot structural entropy sketch.
 
+Global frequency distribution of all 256 byte values.
+
+2. Hotspots
+
+Local entropy peaks across the corpus.
+
+3. Fingerprint
+
+Rolling‑hash + bottom‑k MinHash content signature.
+
+4. HeaderSketch
+
+64‑slot structural entropy sketch.
 
 Each module is implemented as a standalone Python file and exposed through a unified CLI.
 
