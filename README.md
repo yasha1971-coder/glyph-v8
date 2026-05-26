@@ -1,5 +1,14 @@
 STRIDE v0 — Minimal Deterministic Corpus Analyzer
 
+███████╗████████╗██████╗ ██╗██████╗ ███████╗
+██╔════╝╚══██╔══╝██╔══██╗██║██╔══██╗██╔════╝
+███████╗   ██║   ██████╔╝██║██║  ██║█████╗  
+╚════██║   ██║   ██╔══██╗██║██║  ██║██╔══╝  
+███████║   ██║   ██║  ██║██║██████╔╝███████╗
+╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝ ╚══════╝
+Minimal Deterministic Corpus Analyzer
+
+
 STRIDE v0 is a minimal, deterministic analysis toolkit for STRIDE containers.
 It provides byte‑exact, reproducible corpus inspection tools designed for low‑level structural analysis, benchmarking, and research workflows.
 
@@ -29,8 +38,6 @@ Features
 • full CLI — complete command‑line interface for all analysis tools
 
 
-All algorithms are deterministic and operate directly on the raw STRIDE container format.
-
 ---
 
 Source Layout
@@ -44,7 +51,6 @@ Source Layout
         headersketch.py
         compare.py
         cli.py
-        ...
 
 
 ---
@@ -76,7 +82,34 @@ Corpus comparison
 stride compare corpus_A.stridebin corpus_B.stridebin
 
 
-All commands produce deterministic, machine‑readable output.
+---
+
+Example Output
+
+Bytefreq
+
+{
+  "00": 123456,
+  "01": 98765,
+  "02": 54321,
+  ...
+}
+
+
+Hotspots
+
+chunk_0001: entropy=7.92
+chunk_0002: entropy=7.88
+chunk_0003: entropy=7.91
+...
+
+
+Compare
+
+fingerprint_jaccard: 0.873
+headersketch_l2: 0.042
+similarity_score: 0.912
+
 
 ---
 
@@ -117,8 +150,7 @@ v1.0 (planned)
 
 Release
 
-Initial public pre‑release:https://github.com/yasha1971-coder/glyph-v8/releases/tag/v0.1.0 (github.com in Bing)
-(github.com in Bing) (bing.com in Bing)
+Initial public pre‑release:https://github.com/yasha1971-coder/glyph-v8/releases/tag/v0.1.0
 
 ---
 
