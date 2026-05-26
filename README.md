@@ -11,25 +11,17 @@ Minimal Deterministic Corpus Analyzer
 ```
 
 **STRIDE v0** is a minimal, deterministic analysis toolkit for STRIDE containers.  
-It provides byte‑exact, reproducible corpus inspection tools designed for low‑level structural analysis, benchmarking, and research workflows.
-
-STRIDE v0 is intentionally small, transparent, and dependency‑free.  
-It is not a general‑purpose framework — it is a precise, verifiable toolset for understanding STRIDE‑encoded corpora.
-
----
+It provides byte‑exact, reproducible corpus inspection tools designed for low‑level structural analysis, benchmarking, and research workflows.  
+STRIDE v0 is intentionally small, transparent, and dependency‑free. It is not a general‑purpose framework — it is a precise, verifiable toolset for understanding STRIDE‑encoded corpora.
 
 ## Design Goals
-
 - **Determinism** — identical input always produces identical output  
 - **Minimalism** — no external dependencies, no hidden state  
 - **Transparency** — simple, readable Python implementation  
 - **Reproducibility** — stable algorithms and stable CLI  
 - **Corpus‑centric** — tools operate directly on STRIDE containers  
 
----
-
 ## Features
-
 - **bytefreq** — global byte‑frequency statistics  
 - **hotspots** — per‑chunk entropy analysis  
 - **fingerprint** — rolling‑hash + bottom‑k MinHash corpus fingerprint  
@@ -39,10 +31,7 @@ It is not a general‑purpose framework — it is a precise, verifiable toolset 
 
 All algorithms are deterministic and operate directly on the raw STRIDE container format.
 
----
-
 ## Source Layout
-
 ```
 ./stride_v0/
     README.md
@@ -54,8 +43,6 @@ All algorithms are deterministic and operate directly on the raw STRIDE containe
         compare.py
         cli.py
 ```
-
----
 
 ## CLI Usage
 
@@ -84,8 +71,6 @@ stride headersketch corpus.stridebin
 stride compare corpus_A.stridebin corpus_B.stridebin
 ```
 
----
-
 ## Example Output
 
 ### Bytefreq
@@ -113,10 +98,7 @@ headersketch_l2: 0.042
 similarity_score: 0.912
 ```
 
----
-
 ## Limitations (Intentional)
-
 STRIDE v0 is a minimal prototype, not a full analysis suite.
 
 - No visualization tools  
@@ -126,8 +108,6 @@ STRIDE v0 is a minimal prototype, not a full analysis suite.
 - No compression or encoding logic  
 
 Its purpose is **clarity**, not completeness.
-
----
 
 ## Roadmap
 
@@ -143,20 +123,11 @@ Its purpose is **clarity**, not completeness.
 - Multi‑corpus comparison  
 - Performance improvements  
 
----
-
 ## Release
-
 Initial public pre‑release:  https://github.com/yasha1971-coder/glyph-v8/releases/tag/v0.1.0
 
----
-
 ## License
-
 MIT License — see `LICENSE` file.
 
----
-
 ## Acknowledgements
-
 STRIDE v0 is part of a broader research effort exploring deterministic corpus analysis and field‑aware encoding strategies.
