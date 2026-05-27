@@ -1,0 +1,10 @@
+Corpus: enwik8 (100,000,000 bytes)
+Date: 2026-05-28
+
+ByteFreq:     1.969s  — top byte: 0x20 space (13.52%)
+Hotspots:     4.171s  — max entropy: 5.685 (chunk 635)
+Fingerprint: 71.621s  — 128 hashes computed
+HeaderSketch: 4.401s  — 64-slot structural profile
+Total:       ~82s
+
+Hardware: OVH EPYC server
