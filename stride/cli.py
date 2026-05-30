@@ -14,6 +14,7 @@ from .container_bytefreq import compute_bytefreq
 from .container_hotspots import compute_hotspots
 from .container_fingerprint import compute_fingerprint
 from .container_headersketch import compute_headersketch
+from .container_writer import write_container
 
 VERSION = "0.1.0"
 
@@ -135,6 +136,12 @@ def cmd_container_headersketch(args):
         print(f"  {i:3d}: {v:.5f}")
 
 
+
+def cmd_container_write(args):
+    import json
+    result = write_container(args.input, args.output, args.chunk_size)
+    print(json.dumps(result, indent=2))
+
 # -------------------------
 # container-compare
 # -------------------------
@@ -252,6 +259,14 @@ def main():
     p_hsk2.add_argument("--size", type=int, default=64)
     p_hsk2.set_defaults(func=cmd_container_headersketch)
 
+
+    # container-write
+    p_cw = sub.add_parser("container-write")
+    p_cw.add_argument("input", help="Raw input file")
+    p_cw.add_argument("output", help="Output .stridebin file")
+    p_cw.add_argument("--chunk-size", type=int, default=65536)
+    p_cw.set_defaults(func=cmd_container_write)
+
     # container-compare
     p_cmp = sub.add_parser("container-compare")
     p_cmp.add_argument("a")
@@ -268,3 +283,6 @@ def main():
         return
 
     args.func(args)
+
+if __name__ == "__main__":
+    main()
